@@ -1,17 +1,11 @@
 from parser import parse_file
-import os
 
 from atom import ContainerAtom
 
 class ISOBaseMediaFile(object):
     def __init__(self, fp):
         self.fp = fp
-
-        fp.seek(0, os.SEEK_END)
-        self.size = fp.tell()
-        fp.seek(0)
-
-        self.atoms = parse_file(fp, self.size)
+        self.atoms = parse_file(fp)
 
     def __write_atom(self, atom, fp):
         fp.write(atom.data)
