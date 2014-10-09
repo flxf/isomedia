@@ -1,3 +1,5 @@
+import os
+
 from isomedia import atom
 from isomedia.atom import Atom, ContainerAtom, RootAtom
 from isomedia.atom import interpret_atom_header, interpret_int32
@@ -33,13 +35,21 @@ def parse_atom(ptr, parent=None, offset=None):
 
     atom_header = parse_atom_header(ptr)
     atom_type, atom_size, header_length = interpret_atom_header(atom_header)
+    atom_body_length = atom_size - header_length
 
     if atom_type in atom.CONTAINER_ATOMS:
         new_atom = ContainerAtom(atom_header, parent, offset)
         new_atom.children = parse_children(ptr, atom_size - header_length, parent=new_atom, offset=offset + header_length)
     elif atom_type in atom.ATOM_TYPE_TO_CLASS:
         new_atom_class = atom.ATOM_TYPE_TO_CLASS[atom_type]
-        new_atom = new_atom_class(atom_header, parent, offset)
+        if new_atom_class.LOAD_DATA:
+            atom_body = need_read(ptr, atom_body_length)
+        else:
+            atom_body = ''
+            ptr.seek(atom_body_length, os.SEEK_CUR)
+
+        atom_data = atom_header + atom_body
+        new_atom = new_atom_class(atom_data, parent, offset)
     else:
         atom_body = need_read(ptr, atom_size - header_length)
         atom_data = atom_header + atom_body

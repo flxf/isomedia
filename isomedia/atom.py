@@ -39,10 +39,6 @@ CONTAINER_ATOMS = [
     'udta',
 ]
 
-ATOM_TYPE_TO_CLASS = {
-    'mdat': MdatAtom
-}
-
 BYTES_TO_UNPACK_FORMAT = {
     8: '>B',
     16: '>H',
@@ -127,3 +123,7 @@ class RootAtom(ContainerAtom):
 
 class MdatAtom(Atom):
     LOAD_DATA = False
+
+ATOM_TYPE_TO_CLASS = {
+    'mdat': MdatAtom
+}
