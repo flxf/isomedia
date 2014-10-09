@@ -39,6 +39,10 @@ CONTAINER_ATOMS = [
     'udta',
 ]
 
+ATOM_TYPE_TO_CLASS = {
+    'mdat': MdatAtom
+}
+
 BYTES_TO_UNPACK_FORMAT = {
     8: '>B',
     16: '>H',
@@ -66,16 +70,20 @@ def interpret_int8(data, offset):
 def interpret_atom_header(data):
     atom_size = interpret_int32(data, 0)
     atom_type = data[4:8]
+
     if atom_size == 1:
         atom_size = interpret_int64(data, 8)
+        header_length = 16
+    else:
+        header_length = 8
 
-    return (atom_type, atom_size)
+    return (atom_type, atom_size, header_length)
 
 class Atom(object):
-    def __init__(self, data, parent_atom, file_offset):
-        # Add root file here... should act more like... documentRoot though... what's the smart way for that?
-        # document versus document.documentElement
+    # Enable lazy-loading
+    LOAD_DATA = True
 
+    def __init__(self, data, parent_atom, file_offset):
         self._data = data
         self.parent_atom = parent_atom
         self._input_file_offset = file_offset
@@ -91,6 +99,11 @@ class Atom(object):
     def size(self):
         return interpret_atom_header(self._data)[1]
 
+    def get_data(self):
+        if len(self._data) != self.size():
+            raise NotImplementedError
+        return self._data
+
 class ContainerAtom(Atom):
     def __init__(self, data, parent_atom, file_offset):
         Atom.__init__(self, data, parent_atom, file_offset)
@@ -104,9 +117,13 @@ class ContainerAtom(Atom):
 
 class RootAtom(ContainerAtom):
     # This is a fictional atom
+
     def __init__(self): # pylint: disable=super-init-not-called
         ContainerAtom.__init__(self, None, None, 0)
 
     def type(self):
         # TODO: Make sure a non 4 character type is handled everywhere
         return 'root-fakeatom'
+
+class MdatAtom(Atom):
+    LOAD_DATA = False

@@ -22,7 +22,6 @@ def parse_file(ptr):
 
     return root
 
-
 def parse_atom(ptr, parent=None, offset=None):
     def parse_atom_header(ptr):
         data = need_read(ptr, 8)
@@ -33,15 +32,17 @@ def parse_atom(ptr, parent=None, offset=None):
         return data
 
     atom_header = parse_atom_header(ptr)
-    header_size = len(atom_header)
-    atom_type, atom_size = interpret_atom_header(atom_header)
+    atom_type, atom_size, header_length = interpret_atom_header(atom_header)
 
     if atom_type in atom.CONTAINER_ATOMS:
         new_atom = ContainerAtom(atom_header, parent, offset)
-        new_atom.children = parse_children(ptr, atom_size - header_size, parent=new_atom, offset=offset + header_size)
+        new_atom.children = parse_children(ptr, atom_size - header_length, parent=new_atom, offset=offset + header_length)
+    elif atom_type in atom.ATOM_TYPE_TO_CLASS:
+        new_atom_class = atom.ATOM_TYPE_TO_CLASS[atom_type]
+        new_atom = new_atom_class(atom_header, parent, offset)
     else:
-        atom_data = need_read(ptr, atom_size - header_size)
-        atom_data = atom_header + atom_data
+        atom_body = need_read(ptr, atom_size - header_length)
+        atom_data = atom_header + atom_body
         new_atom = Atom(atom_data, parent, offset)
 
     return (new_atom, atom_size)
