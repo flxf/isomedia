@@ -8,6 +8,7 @@ setup(
     description='This is another ISO base media format file parser.',
     author='Felix Fung',
     author_email='felix.the.cheshire.cat@gmail.com',
+    url='https://github.com/flxf/isomedia',
     packages=find_packages(),
     install_requires=[],
 )
