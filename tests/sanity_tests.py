@@ -1,6 +1,6 @@
 import unittest
 
-from isomedia import isomedia
+import isomedia
 import os
 
 TESTDATA = os.path.join(os.path.dirname(__file__), 'testdata')
@@ -11,7 +11,8 @@ class TestSanity(unittest.TestCase):
         mp4file = open(mp4filename, 'rb')
         isofile = isomedia.load(mp4file)
 
-        moov_atom = [atom for atom in isofile.atoms if atom.type() == 'moov']
+        root = isofile.root
+        moov_atom = [atom for atom in root.children if atom.type() == 'moov']
         self.assertEqual(len(moov_atom), 1, 'There should be 1 moov atom.')
 
 if __name__ == '__main__':

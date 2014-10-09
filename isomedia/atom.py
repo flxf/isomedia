@@ -73,9 +73,12 @@ def interpret_atom_header(data):
 
 class Atom(object):
     def __init__(self, data, parent_atom, file_offset):
-        self.data = data
+        # Add root file here... should act more like... documentRoot though... what's the smart way for that?
+        # document versus document.documentElement
+
+        self._data = data
         self.parent_atom = parent_atom
-        self.file_offset = file_offset
+        self._input_file_offset = file_offset
 
     def __repr__(self):
         return str({
@@ -83,10 +86,10 @@ class Atom(object):
         })
 
     def type(self):
-        return self.data[4:8]
+        return self._data[4:8]
 
     def size(self):
-        return interpret_atom_header(self.data)[1]
+        return interpret_atom_header(self._data)[1]
 
 class ContainerAtom(Atom):
     def __init__(self, data, parent_atom, file_offset):
@@ -98,3 +101,12 @@ class ContainerAtom(Atom):
             'type': self.type(),
             'children': self.children
         })
+
+class RootAtom(ContainerAtom):
+    # This is a fictional atom
+    def __init__(self): # pylint: disable=super-init-not-called
+        ContainerAtom.__init__(self, None, None, 0)
+
+    def type(self):
+        # TODO: Make sure a non 4 character type is handled everywhere
+        return 'root-fakeatom'

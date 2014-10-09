@@ -1,6 +1,6 @@
-import atom
-from atom import Atom, ContainerAtom
-from atom import interpret_atom_header, interpret_int32
+from isomedia import atom
+from isomedia.atom import Atom, ContainerAtom, RootAtom
+from isomedia.atom import interpret_atom_header, interpret_int32
 
 def need_read(ptr, n):
     data = ptr.read(n)
@@ -9,18 +9,18 @@ def need_read(ptr, n):
     return data
 
 def parse_file(ptr):
-    children = []
-    current_offset = 0
+    root = RootAtom()
 
+    current_offset = 0
     while True:
         try:
             new_atom, atom_size = parse_atom(ptr, parent=None, offset=current_offset)
-            children.append(new_atom)
+            root.children.append(new_atom)
             current_offset += atom_size
         except EOFError:
             break
 
-    return children
+    return root
 
 
 def parse_atom(ptr, parent=None, offset=None):
