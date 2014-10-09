@@ -72,9 +72,10 @@ def interpret_atom_header(data):
     return (atom_type, atom_size)
 
 class Atom(object):
-    def __init__(self, data, parent_atom):
+    def __init__(self, data, parent_atom, file_offset):
         self.data = data
         self.parent_atom = parent_atom
+        self.file_offset = file_offset
 
     def __repr__(self):
         return str({
@@ -88,8 +89,8 @@ class Atom(object):
         return interpret_atom_header(self.data)[1]
 
 class ContainerAtom(Atom):
-    def __init__(self, data, parent_atom):
-        Atom.__init__(self, data, parent_atom)
+    def __init__(self, data, parent_atom, file_offset):
+        Atom.__init__(self, data, parent_atom, file_offset)
         self.children = []
 
     def __repr__(self):
