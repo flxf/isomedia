@@ -2,7 +2,94 @@ from itertools import chain
 import struct
 
 ISOM_BOXES = [
+    'bxml',
+    'co64',
+    'cprt',
+    'cslg',
+    'ctts',
+    'dinf',
+    'dref',
+    'edts',
+    'elst',
+    'fecr',
+    'fiin',
+    'fire',
+    'fpar',
+    'free',
+    'frma',
     'ftyp',
+    'gitn',
+    'hdlr',
+    'hmhd',
+    'idat',
+    'iinf',
+    'iloc',
+    'ipro',
+    'iref',
+    'leva',
+    'mdat',
+    'mdhd',
+    'mdia',
+    'meco',
+    'mehd',
+    'mere',
+    'meta',
+    'mfhd',
+    'mfra',
+    'mfro',
+    'minf',
+    'moof',
+    'moov',
+    'mvex',
+    'mvhd',
+    'nmhd',
+    'padb',
+    'paen',
+    'pdin',
+    'pitm',
+    'prft',
+    'saio',
+    'saiz',
+    'sbgp',
+    'schi',
+    'schm',
+    'sdtp',
+    'segr',
+    'sgpd',
+    'sidx',
+    'sinf',
+    'skip',
+    'smhd',
+    'ssix',
+    'stbl',
+    'stco',
+    'stdp',
+    'strd',
+    'stri',
+    'strk',
+    'stsc',
+    'stsd',
+    'stsh',
+    'stss',
+    'stsz',
+    'stts',
+    'styp',
+    'stz2',
+    'subs',
+    'tfdt',
+    'tfhd',
+    'tfra',
+    'tkhd',
+    'traf',
+    'trak',
+    'tref',
+    'trex',
+    'trgr',
+    'trun',
+    'tsel',
+    'udta',
+    'vmhd',
+    'xml ',
 ]
 
 CONTAINER_ATOMS = [
@@ -113,7 +200,7 @@ class Atom(object):
 
     def __repr__(self):
         return str({
-            'type': self.type()
+            'type': self.type
         })
 
     @property
@@ -144,7 +231,7 @@ class ContainerAtom(Atom):
 
     def __repr__(self):
         return str({
-            'type': self.type(),
+            'type': self.type,
             'children': self.children
         })
 

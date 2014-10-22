@@ -4,6 +4,12 @@ from isomedia import atom
 from isomedia.atom import GenericAtom, ContainerAtom
 from isomedia.atom import interpret_atom_header, interpret_int32
 
+def get_ptr_size(ptr):
+    ptr.seek(0, os.SEEK_END)
+    size = ptr.tell()
+    ptr.seek(0, os.SEEK_SET)
+    return size
+
 def need_read(ptr, n):
     data = ptr.read(n)
     if data is None or len(data) != n:
@@ -14,13 +20,12 @@ def parse_file(ptr, document):
     atoms = []
 
     current_offset = 0
-    while True:
-        try:
-            new_atom, atom_size = parse_atom(ptr, document=document, parent=None, offset=current_offset)
-            atoms.append(new_atom)
-            current_offset += atom_size
-        except EOFError:
-            break
+    filesize = get_ptr_size(ptr)
+
+    while current_offset < filesize:
+        new_atom, atom_size = parse_atom(ptr, document=document, parent=None, offset=current_offset)
+        atoms.append(new_atom)
+        current_offset += atom_size
 
     return atoms
 
@@ -37,8 +42,6 @@ def parse_atom(ptr, document=None, parent=None, offset=None):
     atom_type, atom_size, header_length = interpret_atom_header(atom_header)
     atom_body_length = atom_size - header_length
 
-    print atom_type
-
     if atom_type in atom.CONTAINER_ATOMS:
         new_atom = ContainerAtom(atom_header, document, parent, offset)
         new_atom.children = parse_children(ptr, atom_size - header_length, parent=new_atom, offset=offset + header_length)
@@ -48,7 +51,6 @@ def parse_atom(ptr, document=None, parent=None, offset=None):
             atom_body = need_read(ptr, atom_body_length)
         else:
             atom_body = ''
-            # TODO: Replace this with a seek or read based on file capabilities
             ptr.seek(atom_body_length, os.SEEK_CUR)
 
         atom_data = atom_header + atom_body

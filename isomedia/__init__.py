@@ -1,5 +1,5 @@
 from isomedia.atom import ContainerAtom
-from isomedia.atom import interpret_atom_header
+from isomedia.atom import interpret_atom_header, write_atom_header
 from isomedia.parser import parse_file
 
 CHUNK_SIZE = 1024
@@ -10,24 +10,23 @@ class ISOBaseMediaFile(object):
         self.atoms = parse_file(fp, self)
 
     def __write_atom(self, atom, fp):
-        if atom.LOAD_DATA:
-            fp.write(atom.to_bytes())
-        else:
-            # Lazy-loaded Atoms are read-and-copy only.
-            self.fp.seek(atom._input_file_offset)
-            remaining_to_read = atom.size
-
-            while remaining_to_read > 0:
-                next_chunk_length = min(CHUNK_SIZE, remaining_to_read)
-                fp.write(self.fp.read(next_chunk_length))
-                remaining_to_read -= next_chunk_length
-
         if isinstance(atom, ContainerAtom):
+            fp.write(write_atom_header(atom))
+
             for child in atom.children:
                 self.__write_atom(child, fp)
+        else:
+            if atom.LOAD_DATA:
+                fp.write(atom.to_bytes())
+            else:
+                # Lazy-loaded Atoms are read-and-copy only.
+                self.fp.seek(atom._input_file_offset)
+                remaining_to_read = atom.size
 
-    # write dumps the entire contents of the tree to a file. save takes no arguments and is used to make in-place
-    # modifications to a file.
+                while remaining_to_read > 0:
+                    next_chunk_length = min(CHUNK_SIZE, remaining_to_read)
+                    fp.write(self.fp.read(next_chunk_length))
+                    remaining_to_read -= next_chunk_length
 
     def write(self, fp):
         for atom in self.atoms:
