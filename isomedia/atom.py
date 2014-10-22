@@ -157,46 +157,39 @@ def interpret_int16(data, offset=0):
 def interpret_int8(data, offset=0):
     return interpret_int(data, offset, 8)
 
-def interpret_atom_header(data):
-    atom_size = interpret_int32(data, 0)
-    atom_type = data[4:8]
-
-    if atom_size == 1:
-        atom_size = interpret_int64(data, 8)
-        header_length = 16
-    else:
-        header_length = 8
-
-    return (atom_type, atom_size, header_length)
-
 def write_atom_header(atom):
-    header = ''
+    header = atom.header
+    header_bytes = ''
 
-    if atom.size >= MAX_UINT32:
-        header += struct.pack(UINT_BYTES_TO_FORMAT[32], 1)
+    if header.size >= MAX_UINT32:
+        header_bytes += struct.pack(UINT_BYTES_TO_FORMAT[32], 1)
     else:
-        header += struct.pack(UINT_BYTES_TO_FORMAT[32], atom.size)
-    header += atom.type
-    if atom.size >= MAX_UINT32:
-        header += struct.pack(UINT_BYTES_TO_FORMAT[64], atom.size)
+        header_bytes += struct.pack(UINT_BYTES_TO_FORMAT[32], atom.size)
+    header_bytes += header.type
+    if header.size >= MAX_UINT32:
+        header_bytes += struct.pack(UINT_BYTES_TO_FORMAT[64], atom.size)
 
-    return header
+    return header_bytes
+
+class AtomHeader(object):
+    def __init__(self, atom_type, atom_size, header_length):
+        self.type = atom_type
+        self.size = atom_size
+        self.header_length = header_length
 
 class Atom(object):
     # Enable lazy-loading
     LOAD_DATA = True
 
-    def __init__(self, data, document, parent_atom, file_offset):
-        atom_type, atom_size, header_length = interpret_atom_header(data)
-        self._type = atom_type
-        self.size = atom_size
-        self._body_offset = header_length
+    def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
+        self.header = atom_header
 
         self.document = document
         self.parent_atom = parent_atom
 
         self._input_file_offset = file_offset
-        self._input_size = atom_size
+        self._input_size = atom_header.size
+        self._body_offset = atom_header.header_length
 
     def __repr__(self):
         return str({
@@ -205,28 +198,36 @@ class Atom(object):
 
     @property
     def type(self):
-        return self._type
+        return self.header.type
 
     @type.setter
     def type(self, value):
         assert isinstance(value, str), 'A box\'s type field should be a string.'
         assert len(value) == 4, 'A box\'s type should be 4 bytes exactly.'
-        self._type = value
+        self.header.type = value
+
+    @property
+    def size(self):
+        return self.header.size
+
+    @size.setter
+    def size(self, value):
+        self.header.size = value
 
     def to_bytes(self):
         raise NotImplementedError
 
 class FullAtom(Atom):
-    def __init__(self, data, document, parent_atom, file_offset):
-        Atom.__init__(self, data, document, parent_atom, file_offset)
+    def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
+        Atom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
 
         # Can a full-box have an extended header?
-        self.version = interpret_int8(data, offset=9)
-        self.flags = data[10:13]
+        self.version = interpret_int8(atom_body)
+        self.flags = atom_body[1:4]
 
 class ContainerAtom(Atom):
-    def __init__(self, data, document, parent_atom, file_offset):
-        Atom.__init__(self, data, document, parent_atom, file_offset)
+    def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
+        Atom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
         self.children = []
 
     def __repr__(self):
@@ -244,21 +245,22 @@ class ContainerAtom(Atom):
         self.children.append(child)
 
 class GenericAtom(Atom):
-    def __init__(self, data, document, parent_atom, file_offset):
-        Atom.__init__(self, data, document, parent_atom, file_offset)
-        self._data = data
+    def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
+        Atom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
+        self._data = atom_body
 
     def get_data(self):
         return self._data
 
     def to_bytes(self):
-        return self.get_data()
+        header_bytes = write_atom_header(self)
+        return header_bytes + self.get_data()
 
 class LazyLoadAtom(Atom):
     LOAD_DATA = False
 
-    def __init__(self, data, document, parent_atom, file_offset):
-        Atom.__init__(self, data, document, parent_atom, file_offset)
+    def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
+        Atom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
         self._data = None
 
     def get_data(self):
@@ -285,27 +287,34 @@ class MdatAtom(LazyLoadAtom):
 
 class UserExtendedAtom(Atom):
     # TODO: How should I surface both uuid and the extended types
-    def __init__(self, data, document, parent_atom, file_offset):
-        Atom.__init__(self, data, document, parent_atom, file_offset)
+    def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
+        Atom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
 
-        self._user_type = data[self._body_offset:self._body_offset+16]
-        self._atom_body = data[self._body_offset+16:]
+        self._user_type = atom_body[0:16]
+        self._data = atom_body
 
     def to_bytes(self):
         header_bytes = write_atom_header(self)
-        return ''.join(header_bytes, self._user_type, self._atom_body)
+        return ''.join(header_bytes, self._data)
 
 class FtypAtom(Atom):
-    def __init__(self, data, document, parent_atom, file_offset):
-        Atom.__init__(self, data, document, parent_atom, file_offset)
+    DEFINITION = {
+        'major_brand': (4, None),
+        'minor_version': (4, int),
+        'compatible_brands': (list, (4, None))
+    }
 
-        self.major_brand = data[self._body_offset:self._body_offset+4]
-        self.minor_version = interpret_int32(data[self._body_offset+4:self._body_offset+8])
+    def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
+        Atom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
+
+        self.major_brand = atom_body[0:4]
+        self.minor_version = interpret_int32(atom_body[4:8])
 
         self.compatible_brands = []
-        pos = self._body_offset + 8
+        pos = 8
+
         while pos < self.size:
-            self.compatible_brands.append(data[pos:pos+4])
+            self.compatible_brands.append(atom_body[pos:pos+4])
             pos += 4
 
     def to_bytes(self):

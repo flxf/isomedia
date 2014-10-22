@@ -1,5 +1,5 @@
 from isomedia.atom import ContainerAtom
-from isomedia.atom import interpret_atom_header, write_atom_header
+from isomedia.atom import write_atom_header
 from isomedia.parser import parse_file
 
 CHUNK_SIZE = 1024
