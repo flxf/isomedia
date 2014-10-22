@@ -1,4 +1,5 @@
 from itertools import chain
+import StringIO
 import struct
 
 ISOM_BOXES = [
@@ -171,6 +172,9 @@ def write_atom_header(atom):
 
     return header_bytes
 
+def interpret_atom(atom_body, definition):
+    pass
+
 class AtomHeader(object):
     def __init__(self, atom_type, atom_size, header_length):
         self.type = atom_type
@@ -190,6 +194,8 @@ class Atom(object):
         self._input_file_offset = file_offset
         self._input_size = atom_header.size
         self._body_offset = atom_header.header_length
+
+        self._definition = []
 
     def __repr__(self):
         return str({
@@ -220,6 +226,11 @@ class Atom(object):
 class FullAtom(Atom):
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
         Atom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
+
+        self._definition.extend([
+            ('version', (1, int)),
+            ('flags', (3, None))
+        ])
 
         # Can a full-box have an extended header?
         self.version = interpret_int8(atom_body)
@@ -298,14 +309,14 @@ class UserExtendedAtom(Atom):
         return ''.join(header_bytes, self._data)
 
 class FtypAtom(Atom):
-    DEFINITION = {
-        'major_brand': (4, None),
-        'minor_version': (4, int),
-        'compatible_brands': (list, (4, None))
-    }
-
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
         Atom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
+
+        self._definition.extend([
+            ('major_brand', (4, None)),
+            ('minor_version', (4, int)),
+            ('compatible_brands', (list, (4, None)))
+        ])
 
         self.major_brand = atom_body[0:4]
         self.minor_version = interpret_int32(atom_body[4:8])
@@ -328,15 +339,34 @@ class MvhdAtom(FullAtom):
         FullAtom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
 
         if self.version == 1:
-            self.creation_time = interpret_int64(atom_body, offset=4)
-            self.modification_time = interpret_int64(atom_body, offset=12)
-            self.timescale = interpret_int32(atom_body, offset=20)
-            self.duration = interpret_int64(atom_body, offset=24)
+            self._definition.extend([
+                ('creation_time', (8, int)),
+                ('modification_time', (8, int)),
+                ('timescale', (4, int)),
+                ('duration', (8, int))
+            ])
         else:
-            self.creation_time = interpret_int32(atom_body, offset=4)
-            self.modification_time = interpret_int32(atom_body, offset=8)
-            self.timescale = interpret_int32(atom_body, offset=12)
-            self.duration = interpret_int32(atom_body, offset=16)
+            self._definition.extend([
+                ('creation_time', (4, int)),
+                ('modification_time', (4, int)),
+                ('timescale', (4, int)),
+                ('duration', (4, int))
+            ])
+
+        self._definition.extend([
+            ('rate', (4, int)),
+            ('volume', (2, int)),
+            ('reserved', (2, int)),
+            ('preferred_long', (list, (4, int), 2)),
+            ('matrix', (list, (4, int), 9)),
+            ('preview_time', (4, int)),
+            ('preview_duration', (4, int)),
+            ('poster_time', (4, int)),
+            ('selection_time', (4, int)),
+            ('selection_duration', (4, int)),
+            ('current_time', (4, int)),
+            ('next_track_ID', (4, int))
+        ])
 
     def to_bytes(self):
         header_bytes = write_atom_header(self)
@@ -346,7 +376,11 @@ class MvhdAtom(FullAtom):
         contents_bytes = struct.pack(
             contents_format, self.creation_time, self.modification_time, self.timescale, self.duration)
 
-        return ''.join(chain(header_bytes, full_atom_bytes, contents_bytes))
+        junk = ''.join(chain(header_bytes, full_atom_bytes, contents_bytes))
+        print 'byteslen:', len(junk), 'size:', self.size
+        assert len(junk) == self.size
+
+        return junk
 
 ATOM_TYPE_TO_CLASS = {
     'free': FreeAtom,

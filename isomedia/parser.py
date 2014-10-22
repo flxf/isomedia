@@ -33,6 +33,7 @@ def parse_file(ptr, document):
 
     current_offset = 0
     filesize = get_ptr_size(ptr)
+    print 'filesize:', filesize
 
     while current_offset < filesize:
         new_atom, atom_size = parse_atom(ptr, document=document, parent=None, offset=current_offset)
@@ -52,6 +53,7 @@ def parse_atom(ptr, document=None, parent=None, offset=None):
 
     atom_header = parse_atom_header(ptr)
     atom_type, atom_size, header_length = interpret_atom_header(atom_header)
+    print atom_type, atom_size
 
     atom_header = AtomHeader(atom_type, atom_size, header_length)
     atom_body_length = atom_size - header_length
