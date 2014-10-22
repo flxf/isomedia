@@ -323,11 +323,36 @@ class FtypAtom(Atom):
         box_sequence = chain([header_bytes, self.major_brand, minor_version_bytes], self.compatible_brands)
         return ''.join(box_sequence)
 
+class MvhdAtom(FullAtom):
+    def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
+        FullAtom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
+
+        if self.version == 1:
+            self.creation_time = interpret_int64(atom_body, offset=4)
+            self.modification_time = interpret_int64(atom_body, offset=12)
+            self.timescale = interpret_int32(atom_body, offset=20)
+            self.duration = interpret_int64(atom_body, offset=24)
+        else:
+            self.creation_time = interpret_int32(atom_body, offset=4)
+            self.modification_time = interpret_int32(atom_body, offset=8)
+            self.timescale = interpret_int32(atom_body, offset=12)
+            self.duration = interpret_int32(atom_body, offset=16)
+
+    def to_bytes(self):
+        header_bytes = write_atom_header(self)
+        full_atom_bytes = struct.pack(UINT_BYTES_TO_FORMAT[8], self.version) + self.flags
+
+        contents_format = '>Q>Q>I>Q' if self.version == 1 else '>I>I>I>I'
+        contents_bytes = struct.pack(
+            contents_format, self.creation_time, self.modification_time, self.timescale, self.duration)
+
+        return ''.join(chain(header_bytes, full_atom_bytes, contents_bytes))
 
 ATOM_TYPE_TO_CLASS = {
     'free': FreeAtom,
     'ftyp': FtypAtom,
     'mdat': MdatAtom,
+    'mvhd': MvhdAtom,
     'skip': SkipAtom,
     'uuid': UserExtendedAtom,
 }
