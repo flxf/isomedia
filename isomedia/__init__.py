@@ -26,19 +26,12 @@ class ISOBaseMediaFile(object):
             for child in atom.children:
                 self.__write_atom(child, fp)
 
-    def __save_atom(self, atom, fp):
-        raise NotImplementedError
-
     # write dumps the entire contents of the tree to a file. save takes no arguments and is used to make in-place
     # modifications to a file.
 
     def write(self, fp):
         for atom in self.atoms:
             self.__write_atom(atom, fp)
-
-    def save(self):
-        for atom in self.atoms:
-            self.__save_atom(atom, self.fp)
 
     def __repr__(self):
         return str(self.atoms)

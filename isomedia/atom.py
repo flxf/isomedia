@@ -123,7 +123,17 @@ class ContainerAtom(Atom):
             'children': self.children
         })
 
+    def append_child(self, child):
+        self.size += child.size
+        self.children.append(child)
+
 # ISOM Defined Boxes
+
+class FreeAtom(Atom):
+    LOAD_DATA = False
+
+class SkipAtom(Atom):
+    LOAD_DATA = False
 
 class MdatAtom(Atom):
     LOAD_DATA = False
@@ -140,7 +150,9 @@ class FtypAtom(Atom):
         return self._data[header_length:header_length+4]
 
 ATOM_TYPE_TO_CLASS = {
+    'free': FreeAtom,
     'ftyp': FtypAtom,
     'mdat': MdatAtom,
+    'skip': SkipAtom,
     'uuid': UserExtendedAtom,
 }
