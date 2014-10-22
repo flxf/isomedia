@@ -1,5 +1,9 @@
 import struct
 
+ISOM_BOXES = [
+    'ftyp',
+]
+
 CONTAINER_ATOMS = [
     '\xa9alb',
     '\xa9art',
@@ -100,6 +104,13 @@ class Atom(object):
             raise NotImplementedError
         return self._data
 
+class FullAtom(Atom):
+    def version(self):
+        return self._data[9]
+
+    def flags(self):
+        return self._data[10:13]
+
 class ContainerAtom(Atom):
     def __init__(self, data, parent_atom, file_offset):
         Atom.__init__(self, data, parent_atom, file_offset)
@@ -121,9 +132,17 @@ class RootAtom(ContainerAtom):
         # TODO: Make sure a non 4 character type is handled everywhere
         return 'root-fakeatom'
 
+# ISOM Defined Boxes
+
 class MdatAtom(Atom):
     LOAD_DATA = False
 
+class UserExtendedAtom(Atom):
+    def type(self):
+        header_length = interpret_atom_header(self._data)[2]
+        return self._data[header_length:header_length+16]
+
 ATOM_TYPE_TO_CLASS = {
-    'mdat': MdatAtom
+    'mdat': MdatAtom,
+    'uuid': UserExtendedAtom
 }
