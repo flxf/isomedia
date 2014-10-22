@@ -342,7 +342,7 @@ class MvhdAtom(FullAtom):
         header_bytes = write_atom_header(self)
         full_atom_bytes = struct.pack(UINT_BYTES_TO_FORMAT[8], self.version) + self.flags
 
-        contents_format = '>Q>Q>I>Q' if self.version == 1 else '>I>I>I>I'
+        contents_format = '>QQIQ' if self.version == 1 else '>IIII'
         contents_bytes = struct.pack(
             contents_format, self.creation_time, self.modification_time, self.timescale, self.duration)
 
