@@ -114,11 +114,10 @@ class ContainerAtom(Atom):
 class RootAtom(ContainerAtom):
     # This is a fictional atom
 
-    def __init__(self): # pylint: disable=super-init-not-called
+    def __init__(self):
         ContainerAtom.__init__(self, None, None, 0)
 
     def type(self):
-        # TODO: Make sure a non 4 character type is handled everywhere
         return 'root-fakeatom'
 
 class MdatAtom(Atom):
