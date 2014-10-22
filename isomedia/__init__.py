@@ -10,18 +10,17 @@ class ISOBaseMediaFile(object):
         self.atoms = parse_file(fp, self)
 
     def __write_atom(self, atom, fp):
-        if atom.type() != 'root-fakeatom':
-            if atom.LOAD_DATA:
-                fp.write(atom._data)
-            else:
-                # Lazy-loaded Atoms are read-and-copy only.
-                self.fp.seek(atom._input_file_offset)
-                remaining_to_read = atom.size()
+        if atom.LOAD_DATA:
+            fp.write(atom._data)
+        else:
+            # Lazy-loaded Atoms are read-and-copy only.
+            self.fp.seek(atom._input_file_offset)
+            remaining_to_read = atom.size()
 
-                while remaining_to_read > 0:
-                    next_chunk_length = min(CHUNK_SIZE, remaining_to_read)
-                    fp.write(self.fp.read(next_chunk_length))
-                    remaining_to_read -= next_chunk_length
+            while remaining_to_read > 0:
+                next_chunk_length = min(CHUNK_SIZE, remaining_to_read)
+                fp.write(self.fp.read(next_chunk_length))
+                remaining_to_read -= next_chunk_length
 
         if isinstance(atom, ContainerAtom):
             for child in atom.children:
