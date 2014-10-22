@@ -156,7 +156,17 @@ class ContainerAtom(Atom):
         self.size += child.size
         self.children.append(child)
 
-# ISOM Defined Boxes
+class GenericAtom(Atom):
+    def __init__(self, data, document, parent_atom, file_offset):
+        Atom.__init__(self, data, document, parent_atom, file_offset)
+        self._data = data
+
+    def get_data(self):
+        return self._data
+
+    def to_bytes(self):
+        return self.get_data()
+
 class LazyLoadAtom(Atom):
     LOAD_DATA = False
 
@@ -174,6 +184,8 @@ class LazyLoadAtom(Atom):
 
     def to_bytes(self):
         return self.get_data()
+
+# ISOM Defined Boxes
 
 class FreeAtom(LazyLoadAtom):
     pass
@@ -207,6 +219,7 @@ class FtypAtom(Atom):
         pos = self._body_offset + 8
         while pos < self.size:
             self.compatible_brands.append(data[pos:pos+4])
+            pos += 4
 
     def to_bytes(self):
         header_bytes = write_atom_header(self)

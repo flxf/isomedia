@@ -11,11 +11,11 @@ class ISOBaseMediaFile(object):
 
     def __write_atom(self, atom, fp):
         if atom.LOAD_DATA:
-            fp.write(atom._data)
+            fp.write(atom.to_bytes())
         else:
             # Lazy-loaded Atoms are read-and-copy only.
             self.fp.seek(atom._input_file_offset)
-            remaining_to_read = atom.size()
+            remaining_to_read = atom.size
 
             while remaining_to_read > 0:
                 next_chunk_length = min(CHUNK_SIZE, remaining_to_read)

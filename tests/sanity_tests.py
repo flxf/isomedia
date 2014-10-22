@@ -13,8 +13,7 @@ class TestSanity(unittest.TestCase):
         mp4file = open(mp4filename, 'rb')
         isofile = isomedia.load(mp4file)
 
-        root = isofile.root
-        moov_atom = [atom for atom in root.children if atom.type() == 'moov']
+        moov_atom = [atom for atom in isofile.atoms if atom.type == 'moov']
         self.assertEqual(len(moov_atom), 1, 'There should be 1 moov atom.')
 
         mp4file.close()
