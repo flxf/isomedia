@@ -17,6 +17,8 @@ class TestSanity(unittest.TestCase):
         moov_atom = [atom for atom in root.children if atom.type() == 'moov']
         self.assertEqual(len(moov_atom), 1, 'There should be 1 moov atom.')
 
+        mp4file.close()
+
     def test_lossless_write(self):
         mp4filename = os.path.join(TESTDATA, 'loop_circle.mp4')
         infile = open(mp4filename, 'rb')
@@ -29,6 +31,8 @@ class TestSanity(unittest.TestCase):
         outfile.close()
 
         self.assertTrue(filecmp.cmp(infile.name, outfile.name))
+
+        os.remove(outfile.name)
 
 if __name__ == '__main__':
     unittest.main()
