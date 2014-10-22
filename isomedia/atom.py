@@ -84,6 +84,10 @@ class Atom(object):
     LOAD_DATA = True
 
     def __init__(self, data, document, parent_atom, file_offset):
+        atom_type, atom_size, _ = interpret_atom_header(data)
+        self._type = atom_type
+        self._size = atom_size
+
         self.document = document
         self._data = data
         self.parent_atom = parent_atom
@@ -96,8 +100,15 @@ class Atom(object):
             'type': self.type()
         })
 
+    @property
     def type(self):
-        return self._data[4:8]
+        return self._type
+
+    @type.setter
+    def type(self, value):
+        assert isinstance(value, str), 'A box\'s type field should be a string.'
+        assert len(value) == 4, 'A box\'s type should be 4 bytes exactly.'
+        self._type = value
 
     def size(self):
         return interpret_atom_header(self._data)[1]
@@ -130,15 +141,25 @@ class ContainerAtom(Atom):
         self.children.append(child)
 
 # ISOM Defined Boxes
-
-class FreeAtom(Atom):
+class LazyLoadAtom(Atom):
     LOAD_DATA = False
 
-class SkipAtom(Atom):
-    LOAD_DATA = False
+    def get_data(self):
+        if self._data is None:
+            fp = self.document.fp
+            fp.seek(self._input_file_offset)
+            self._data = fp.read(self._input_size)
 
-class MdatAtom(Atom):
-    LOAD_DATA = False
+        return self._data
+
+class FreeAtom(LazyLoadAtom):
+    pass
+
+class SkipAtom(LazyLoadAtom):
+    pass
+
+class MdatAtom(LazyLoadAtom):
+    pass
 
 class UserExtendedAtom(Atom):
     # TODO: How should I surface both uuid and the extended types
