@@ -87,7 +87,9 @@ class Atom(object):
         self.document = document
         self._data = data
         self.parent_atom = parent_atom
+
         self._input_file_offset = file_offset
+        self._input_size = interpret_atom_header(self._data)[1]
 
     def __repr__(self):
         return str({
