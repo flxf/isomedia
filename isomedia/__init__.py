@@ -7,7 +7,7 @@ CHUNK_SIZE = 1024
 class ISOBaseMediaFile(object):
     def __init__(self, fp):
         self.fp = fp
-        self.root = parse_file(fp)
+        self.atoms = parse_file(fp, self)
 
     def __write_atom(self, atom, fp):
         if atom.type() != 'root-fakeatom':
@@ -27,13 +27,22 @@ class ISOBaseMediaFile(object):
             for child in atom.children:
                 self.__write_atom(child, fp)
 
-    def write(self, fp=None):
-        # TODO: Exception handling
-        fp = fp or self.fp
-        self.__write_atom(self.root, fp)
+    def __save_atom(self, atom, fp):
+        raise NotImplementedError
+
+    # write dumps the entire contents of the tree to a file. save takes no arguments and is used to make in-place
+    # modifications to a file.
+
+    def write(self, fp):
+        for atom in self.atoms:
+            self.__write_atom(atom, fp)
+
+    def save(self):
+        for atom in self.atoms:
+            self.__save_atom(atom, self.fp)
 
     def __repr__(self):
-        return str(self.root)
+        return str(self.atoms)
 
 def load(fp):
     return ISOBaseMediaFile(fp)

@@ -55,16 +55,16 @@ def interpret_int(data, offset, size):
     field = data[offset:offset + (size / 8)]
     return struct.unpack(BYTES_TO_UNPACK_FORMAT[size], field)[0]
 
-def interpret_int64(data, offset):
+def interpret_int64(data, offset=0):
     return interpret_int(data, offset, 64)
 
-def interpret_int32(data, offset):
+def interpret_int32(data, offset=0):
     return interpret_int(data, offset, 32)
 
-def interpret_int16(data, offset):
+def interpret_int16(data, offset=0):
     return interpret_int(data, offset, 16)
 
-def interpret_int8(data, offset):
+def interpret_int8(data, offset=0):
     return interpret_int(data, offset, 8)
 
 def interpret_atom_header(data):
@@ -83,7 +83,8 @@ class Atom(object):
     # Enable lazy-loading
     LOAD_DATA = True
 
-    def __init__(self, data, parent_atom, file_offset):
+    def __init__(self, data, document, parent_atom, file_offset):
+        self.document = document
         self._data = data
         self.parent_atom = parent_atom
         self._input_file_offset = file_offset
@@ -106,14 +107,14 @@ class Atom(object):
 
 class FullAtom(Atom):
     def version(self):
-        return self._data[9]
+        return interpret_int8(self._data, offset=9)
 
     def flags(self):
         return self._data[10:13]
 
 class ContainerAtom(Atom):
-    def __init__(self, data, parent_atom, file_offset):
-        Atom.__init__(self, data, parent_atom, file_offset)
+    def __init__(self, data, document, parent_atom, file_offset):
+        Atom.__init__(self, data, document, parent_atom, file_offset)
         self.children = []
 
     def __repr__(self):
@@ -122,27 +123,24 @@ class ContainerAtom(Atom):
             'children': self.children
         })
 
-class RootAtom(ContainerAtom):
-    # This is a fictional atom
-
-    def __init__(self): # pylint: disable=super-init-not-called
-        ContainerAtom.__init__(self, None, None, 0)
-
-    def type(self):
-        # TODO: Make sure a non 4 character type is handled everywhere
-        return 'root-fakeatom'
-
 # ISOM Defined Boxes
 
 class MdatAtom(Atom):
     LOAD_DATA = False
 
 class UserExtendedAtom(Atom):
+    # TODO: How should I surface both uuid and the extended types
     def type(self):
         header_length = interpret_atom_header(self._data)[2]
         return self._data[header_length:header_length+16]
 
+class FtypAtom(Atom):
+    def major_brand(self):
+        header_length = interpret_atom_header(self._data)[2]
+        return self._data[header_length:header_length+4]
+
 ATOM_TYPE_TO_CLASS = {
+    'ftyp': FtypAtom,
     'mdat': MdatAtom,
-    'uuid': UserExtendedAtom
+    'uuid': UserExtendedAtom,
 }
