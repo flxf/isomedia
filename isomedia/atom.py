@@ -133,47 +133,75 @@ CONTAINER_ATOMS = [
 ]
 
 UINT_BYTES_TO_FORMAT = {
-    8: '>B',
-    16: '>H',
-    32: '>I',
-    64: '>Q'
+    1: '>B',
+    2: '>H',
+    4: '>I',
+    8: '>Q'
 }
 
 MAX_UINT32 = (2 ** 32) - 1
 
 def interpret_int(data, offset, size):
     assert size in UINT_BYTES_TO_FORMAT
-    field = data[offset:offset + (size / 8)]
+    field = data[offset:offset + size]
     return struct.unpack(UINT_BYTES_TO_FORMAT[size], field)[0]
 
 def interpret_int64(data, offset=0):
-    return interpret_int(data, offset, 64)
+    return interpret_int(data, offset, 8)
 
 def interpret_int32(data, offset=0):
-    return interpret_int(data, offset, 32)
+    return interpret_int(data, offset, 4)
 
 def interpret_int16(data, offset=0):
-    return interpret_int(data, offset, 16)
+    return interpret_int(data, offset, 2)
 
 def interpret_int8(data, offset=0):
-    return interpret_int(data, offset, 8)
+    return interpret_int(data, offset, 1)
 
 def write_atom_header(atom):
     header = atom.header
     header_bytes = ''
 
     if header.size >= MAX_UINT32:
-        header_bytes += struct.pack(UINT_BYTES_TO_FORMAT[32], 1)
+        header_bytes += struct.pack(UINT_BYTES_TO_FORMAT[4], 1)
     else:
-        header_bytes += struct.pack(UINT_BYTES_TO_FORMAT[32], atom.size)
+        header_bytes += struct.pack(UINT_BYTES_TO_FORMAT[4], atom.size)
     header_bytes += header.type
     if header.size >= MAX_UINT32:
-        header_bytes += struct.pack(UINT_BYTES_TO_FORMAT[64], atom.size)
+        header_bytes += struct.pack(UINT_BYTES_TO_FORMAT[8], atom.size)
 
     return header_bytes
 
 def interpret_atom(atom_body, definition):
-    pass
+    result = {}
+
+    for field in definition:
+        field_name, field_type = field
+        length = field_type[0]
+
+        if length == list:
+            item_length, item_cast = field_type[1]
+            item_count = field_type[2]
+
+            data = []
+            while item_count is None or len(data) < item_count:
+                item_data = atom_body.read(item_length)
+                if not item_data:
+                    break
+
+                if item_cast == int:
+                    item_data = struct.unpack(UINT_BYTES_TO_FORMAT[item_length], item_data)[0]
+                data.append(item_data)
+
+        else:
+            data = atom_body.read(length)
+            cast = field_type[1]
+            if cast == int:
+                data = struct.unpack(UINT_BYTES_TO_FORMAT[length], data)[0]
+
+        result[field_name] = data
+
+    return result
 
 class AtomHeader(object):
     def __init__(self, atom_type, atom_size, header_length):
@@ -338,22 +366,27 @@ class MvhdAtom(FullAtom):
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
         FullAtom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
 
+        # XXX
+        io_body = StringIO.StringIO(atom_body[4:])
+
+        atom_definition = []
+
         if self.version == 1:
-            self._definition.extend([
+            atom_definition.extend([
                 ('creation_time', (8, int)),
                 ('modification_time', (8, int)),
                 ('timescale', (4, int)),
                 ('duration', (8, int))
             ])
         else:
-            self._definition.extend([
+            atom_definition.extend([
                 ('creation_time', (4, int)),
                 ('modification_time', (4, int)),
                 ('timescale', (4, int)),
                 ('duration', (4, int))
             ])
 
-        self._definition.extend([
+        atom_definition.extend([
             ('rate', (4, int)),
             ('volume', (2, int)),
             ('reserved', (2, int)),
@@ -368,19 +401,22 @@ class MvhdAtom(FullAtom):
             ('next_track_ID', (4, int))
         ])
 
+        print interpret_atom(io_body, atom_definition)
+
     def to_bytes(self):
-        header_bytes = write_atom_header(self)
-        full_atom_bytes = struct.pack(UINT_BYTES_TO_FORMAT[8], self.version) + self.flags
+        #header_bytes = write_atom_header(self)
+        #full_atom_bytes = struct.pack(UINT_BYTES_TO_FORMAT[8], self.version) + self.flags
 
-        contents_format = '>QQIQ' if self.version == 1 else '>IIII'
-        contents_bytes = struct.pack(
-            contents_format, self.creation_time, self.modification_time, self.timescale, self.duration)
+        #contents_format = '>QQIQ' if self.version == 1 else '>IIII'
+        #contents_bytes = struct.pack(
+            #contents_format, self.creation_time, self.modification_time, self.timescale, self.duration)
 
-        junk = ''.join(chain(header_bytes, full_atom_bytes, contents_bytes))
-        print 'byteslen:', len(junk), 'size:', self.size
-        assert len(junk) == self.size
+        #junk = ''.join(chain(header_bytes, full_atom_bytes, contents_bytes))
+        #print 'byteslen:', len(junk), 'size:', self.size
+        #assert len(junk) == self.size
 
-        return junk
+        #return junk
+        pass
 
 ATOM_TYPE_TO_CLASS = {
     'free': FreeAtom,
