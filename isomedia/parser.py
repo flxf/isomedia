@@ -3,6 +3,7 @@ import StringIO
 
 from isomedia import atom, isom_atoms
 from isomedia.atom import AtomHeader, GenericAtom, ContainerAtom, interpret_int32, interpret_int64
+from isomedia.exceptions import MalformedIsomFile, AtomSpecificationError
 
 def get_ptr_size(ptr):
     ptr.seek(0, os.SEEK_END)
@@ -50,27 +51,46 @@ def parse_atom(ptr, document=None, parent=None, offset=None):
 
         return data
 
-    atom_header = parse_atom_header(ptr)
+    try:
+        atom_header = parse_atom_header(ptr)
+    except EOFError:
+        raise MalformedIsomFile
+
     atom_type, atom_size, header_length = interpret_atom_header(atom_header)
 
     atom_header = AtomHeader(atom_type, atom_size, header_length)
     atom_body_length = atom_size - header_length
 
     # TODO: Clearly distinguish different atom specifications
+    new_atom = None
+    atom_body = None
+
     if atom_type in atom.CONTAINER_ATOMS:
         new_atom = ContainerAtom(atom_header, None, document, parent, offset)
-        new_atom.children = parse_children(ptr, atom_size - header_length, parent=new_atom, offset=offset + header_length)
+        new_atom.children = parse_children(ptr, atom_body_length, parent=new_atom, offset=offset + header_length)
     elif atom_type in isom_atoms.ATOM_TYPE_TO_CLASS:
         new_atom_class = isom_atoms.ATOM_TYPE_TO_CLASS[atom_type]
         if new_atom_class.LOAD_DATA:
-            atom_body = need_read(ptr, atom_body_length)
+            try:
+                atom_body = need_read(ptr, atom_body_length)
+            except EOFError:
+                raise MalformedIsomFile
         else:
             atom_body = None
             ptr.seek(atom_body_length, os.SEEK_CUR)
 
-        new_atom = new_atom_class(atom_header, StringIO.StringIO(atom_body), document, parent, offset)
-    else:
-        atom_body = need_read(ptr, atom_body_length)
+        # If the atom is the right size but doesn't match the definition, we can still parse the rest of the file and
+        # just default this atom to a GenericAtom and let the caller munge the bits.
+        try:
+            new_atom = new_atom_class(atom_header, StringIO.StringIO(atom_body), document, parent, offset)
+        except AtomSpecificationError:
+            new_atom = None
+
+    if new_atom is None:
+        try:
+            atom_body = atom_body or need_read(ptr, atom_body_length)
+        except EOFError:
+            raise MalformedIsomFile
         new_atom = GenericAtom(atom_header, StringIO.StringIO(atom_body), document, parent, offset)
 
     return (new_atom, atom_size)

@@ -1,6 +1,8 @@
 from itertools import chain
 import struct
 
+from isomedia.exceptions import AtomSpecificationError
+
 CONTAINER_ATOMS = [
     '\xa9alb',
     '\xa9art',
@@ -81,6 +83,11 @@ def write_atom_header(atom):
     return header_bytes
 
 def interpret_atom(atom_body, definition):
+    def cast_field(data, length, cast):
+        if cast == int:
+            data = struct.unpack(UINT_BYTES_TO_FORMAT[length], data)[0]
+        return data
+
     result = {}
 
     for field in definition:
@@ -96,16 +103,19 @@ def interpret_atom(atom_body, definition):
                 item_data = atom_body.read(item_length)
                 if not item_data:
                     break
+                elif len(item_data) != item_length:
+                    raise AtomSpecificationError
 
-                if item_cast == int:
-                    item_data = struct.unpack(UINT_BYTES_TO_FORMAT[item_length], item_data)[0]
+                item_data = cast_field(item_data, item_length, item_cast)
                 data.append(item_data)
 
         else:
             data = atom_body.read(length)
+            if len(data) != length:
+                raise AtomSpecificationError
+
             cast = field_type[1]
-            if cast == int:
-                data = struct.unpack(UINT_BYTES_TO_FORMAT[length], data)[0]
+            data = cast_field(data, length, cast)
 
         result[field_name] = data
 

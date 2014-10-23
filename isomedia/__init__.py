@@ -1,11 +1,14 @@
-from isomedia.atom import ContainerAtom
-from isomedia.atom import write_atom_header
+from isomedia.atom import ContainerAtom, write_atom_header
+from isomedia.exceptions import MalformedIsomFile
 from isomedia.parser import parse_file
 
 CHUNK_SIZE = 1024
 
 class ISOBaseMediaFile(object):
     def __init__(self, fp):
+        if not fp.seekable():
+            raise MalformedIsomFile
+
         self.fp = fp
         self.atoms = parse_file(fp, self)
 
