@@ -203,6 +203,32 @@ def interpret_atom(atom_body, definition):
 
     return result
 
+def write_atom(properties, definition):
+    result = ''
+
+    for field in definition:
+        field_name, field_type = field
+        field_value = properties[field_name]
+
+        length = field_type[0]
+
+        if length == list:
+            item_length, item_cast = field_type[1]
+
+            for item_value in field_value:
+                if item_cast == int:
+                    result += struct.pack(UINT_BYTES_TO_FORMAT[item_length], item_value)
+                else:
+                    result += item_value
+        else:
+            cast = field_type[1]
+            if cast == int:
+                result += struct.pack(UINT_BYTES_TO_FORMAT[length], field_value)
+            else:
+                result += field_value
+
+    return result
+
 class AtomHeader(object):
     def __init__(self, atom_type, atom_size, header_length):
         self.type = atom_type
@@ -223,7 +249,7 @@ class Atom(object):
         self._input_size = atom_header.size
         self._body_offset = atom_header.header_length
 
-        self._definition = []
+        self._definition = {}
 
     def __repr__(self):
         return str({
@@ -255,10 +281,11 @@ class FullAtom(Atom):
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
         Atom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
 
-        self._definition.extend([
+        definition = [
             ('version', (1, int)),
             ('flags', (3, None))
-        ])
+        ]
+        self._definition['FullAtom'] = definition
 
         # Can a full-box have an extended header?
         self.version = interpret_int8(atom_body)
@@ -340,11 +367,12 @@ class FtypAtom(Atom):
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
         Atom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
 
-        self._definition.extend([
+        definition = [
             ('major_brand', (4, None)),
             ('minor_version', (4, int)),
             ('compatible_brands', (list, (4, None)))
-        ])
+        ]
+        self._definition['FtypAtom'] = definition
 
         self.major_brand = atom_body[0:4]
         self.minor_version = interpret_int32(atom_body[4:8])
@@ -358,7 +386,7 @@ class FtypAtom(Atom):
 
     def to_bytes(self):
         header_bytes = write_atom_header(self)
-        minor_version_bytes = struct.pack(UINT_BYTES_TO_FORMAT[32], self.minor_version)
+        minor_version_bytes = struct.pack(UINT_BYTES_TO_FORMAT[4], self.minor_version)
         box_sequence = chain([header_bytes, self.major_brand, minor_version_bytes], self.compatible_brands)
         return ''.join(box_sequence)
 
@@ -369,24 +397,24 @@ class MvhdAtom(FullAtom):
         # XXX
         io_body = StringIO.StringIO(atom_body[4:])
 
-        atom_definition = []
+        definition = []
 
         if self.version == 1:
-            atom_definition.extend([
+            definition.extend([
                 ('creation_time', (8, int)),
                 ('modification_time', (8, int)),
                 ('timescale', (4, int)),
                 ('duration', (8, int))
             ])
         else:
-            atom_definition.extend([
+            definition.extend([
                 ('creation_time', (4, int)),
                 ('modification_time', (4, int)),
                 ('timescale', (4, int)),
                 ('duration', (4, int))
             ])
 
-        atom_definition.extend([
+        definition.extend([
             ('rate', (4, int)),
             ('volume', (2, int)),
             ('reserved', (2, int)),
@@ -401,22 +429,15 @@ class MvhdAtom(FullAtom):
             ('next_track_ID', (4, int))
         ])
 
-        print interpret_atom(io_body, atom_definition)
+        self.properties = interpret_atom(io_body, definition)
+        self._definition['MvhdAtom'] = definition
 
     def to_bytes(self):
-        #header_bytes = write_atom_header(self)
-        #full_atom_bytes = struct.pack(UINT_BYTES_TO_FORMAT[8], self.version) + self.flags
+        header_bytes = write_atom_header(self)
+        full_atom_bytes = struct.pack(UINT_BYTES_TO_FORMAT[1], self.version) + self.flags
+        remainder = write_atom(self.properties, self._definition['MvhdAtom'])
 
-        #contents_format = '>QQIQ' if self.version == 1 else '>IIII'
-        #contents_bytes = struct.pack(
-            #contents_format, self.creation_time, self.modification_time, self.timescale, self.duration)
-
-        #junk = ''.join(chain(header_bytes, full_atom_bytes, contents_bytes))
-        #print 'byteslen:', len(junk), 'size:', self.size
-        #assert len(junk) == self.size
-
-        #return junk
-        pass
+        return ''.join(chain(header_bytes, full_atom_bytes, remainder))
 
 ATOM_TYPE_TO_CLASS = {
     'free': FreeAtom,
