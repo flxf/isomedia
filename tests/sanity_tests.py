@@ -4,6 +4,7 @@ import tempfile
 import unittest
 
 import isomedia
+from isomedia.atom import GenericAtom
 
 TESTDATA = os.path.join(os.path.dirname(__file__), 'testdata')
 
@@ -32,6 +33,17 @@ class TestSanity(unittest.TestCase):
         self.assertTrue(filecmp.cmp(infile.name, outfile.name))
 
         os.remove(outfile.name)
+
+    def test_fail_to_generic_atom(self):
+        mp4filename = os.path.join(TESTDATA, 'broken_mvhd.mp4')
+        infile = open(mp4filename, 'rb')
+        isofile = isomedia.load(infile)
+
+        self.assertTrue(isofile.atoms)
+        self.assertEqual(len(isofile.atoms), 1)
+        self.assertTrue(isinstance(isofile.atoms[0], GenericAtom))
+
+        infile.close()
 
 if __name__ == '__main__':
     unittest.main()

@@ -6,9 +6,6 @@ CHUNK_SIZE = 1024
 
 class ISOBaseMediaFile(object):
     def __init__(self, fp):
-        if not fp.seekable():
-            raise MalformedIsomFile
-
         self.fp = fp
         self.atoms = parse_file(fp, self)
 

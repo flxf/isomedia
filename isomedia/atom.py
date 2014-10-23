@@ -1,4 +1,5 @@
 from itertools import chain
+import StringIO
 import struct
 
 from isomedia.exceptions import AtomSpecificationError
@@ -50,6 +51,8 @@ UINT_BYTES_TO_FORMAT = {
 }
 
 MAX_UINT32 = (2 ** 32) - 1
+STANDARD_HEADER_LENGTH = 8
+EXTENDED_HEADER_LENGTH = 16
 
 def interpret_int(data, offset, size):
     assert size in UINT_BYTES_TO_FORMAT
@@ -72,12 +75,12 @@ def write_atom_header(atom):
     header = atom.header
     header_bytes = ''
 
-    if header.size >= MAX_UINT32:
+    if header.size > MAX_UINT32:
         header_bytes += struct.pack(UINT_BYTES_TO_FORMAT[4], 1)
     else:
         header_bytes += struct.pack(UINT_BYTES_TO_FORMAT[4], atom.size)
     header_bytes += header.type
-    if header.size >= MAX_UINT32:
+    if header.size > MAX_UINT32:
         header_bytes += struct.pack(UINT_BYTES_TO_FORMAT[8], atom.size)
 
     return header_bytes
@@ -260,3 +263,16 @@ class LazyLoadAtom(Atom):
 
     def to_bytes(self):
         return self.get_data()
+
+def create_atom(atom_type, atom_body):
+    assert len(atom_type) == 4, 'A box\'s type should be 4 bytes exactly.'
+
+    body_length = len(atom_body)
+    if body_length + STANDARD_HEADER_LENGTH <= MAX_UINT32:
+        header_length = STANDARD_HEADER_LENGTH
+    else:
+        header_length = EXTENDED_HEADER_LENGTH
+
+    atom_size = header_length + body_length
+    atom_header = AtomHeader(atom_type, atom_size, header_length)
+    return GenericAtom(atom_header, StringIO.StringIO(atom_body), None, None, None)
