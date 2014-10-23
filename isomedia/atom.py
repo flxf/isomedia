@@ -1,5 +1,4 @@
 from itertools import chain
-import StringIO
 import struct
 
 ISOM_BOXES = [
@@ -250,6 +249,10 @@ class Atom(object):
         self._body_offset = atom_header.header_length
 
         self._definition = {}
+        self.properties = {}
+
+    def to_bytes(self):
+        return write_atom_header(self)
 
     def __repr__(self):
         return str({
@@ -274,9 +277,6 @@ class Atom(object):
     def size(self, value):
         self.header.size = value
 
-    def to_bytes(self):
-        raise NotImplementedError
-
 class FullAtom(Atom):
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
         Atom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
@@ -285,11 +285,13 @@ class FullAtom(Atom):
             ('version', (1, int)),
             ('flags', (3, None))
         ]
+
+        self.properties.update(interpret_atom(atom_body, definition))
         self._definition['FullAtom'] = definition
 
-        # Can a full-box have an extended header?
-        self.version = interpret_int8(atom_body)
-        self.flags = atom_body[1:4]
+    def to_bytes(self):
+        written = Atom.to_bytes(self)
+        return ''.join(chain(written, write_atom(self.properties, self._definition['FullAtom'])))
 
 class ContainerAtom(Atom):
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
@@ -313,7 +315,7 @@ class ContainerAtom(Atom):
 class GenericAtom(Atom):
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
         Atom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
-        self._data = atom_body
+        self._data = atom_body.read()
 
     def get_data(self):
         return self._data
@@ -370,36 +372,23 @@ class FtypAtom(Atom):
         definition = [
             ('major_brand', (4, None)),
             ('minor_version', (4, int)),
-            ('compatible_brands', (list, (4, None)))
+            ('compatible_brands', (list, (4, None), None))
         ]
+
+        self.properties.update(interpret_atom(atom_body, definition))
         self._definition['FtypAtom'] = definition
 
-        self.major_brand = atom_body[0:4]
-        self.minor_version = interpret_int32(atom_body[4:8])
-
-        self.compatible_brands = []
-        pos = 8
-
-        while pos < self.size:
-            self.compatible_brands.append(atom_body[pos:pos+4])
-            pos += 4
-
     def to_bytes(self):
-        header_bytes = write_atom_header(self)
-        minor_version_bytes = struct.pack(UINT_BYTES_TO_FORMAT[4], self.minor_version)
-        box_sequence = chain([header_bytes, self.major_brand, minor_version_bytes], self.compatible_brands)
-        return ''.join(box_sequence)
+        written = Atom.to_bytes(self)
+        return ''.join(chain(written, write_atom(self.properties, self._definition['FtypAtom'])))
 
 class MvhdAtom(FullAtom):
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
         FullAtom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
 
-        # XXX
-        io_body = StringIO.StringIO(atom_body[4:])
-
         definition = []
 
-        if self.version == 1:
+        if self.properties['version'] == 1:
             definition.extend([
                 ('creation_time', (8, int)),
                 ('modification_time', (8, int)),
@@ -429,15 +418,12 @@ class MvhdAtom(FullAtom):
             ('next_track_ID', (4, int))
         ])
 
-        self.properties = interpret_atom(io_body, definition)
+        self.properties.update(interpret_atom(atom_body, definition))
         self._definition['MvhdAtom'] = definition
 
     def to_bytes(self):
-        header_bytes = write_atom_header(self)
-        full_atom_bytes = struct.pack(UINT_BYTES_TO_FORMAT[1], self.version) + self.flags
-        remainder = write_atom(self.properties, self._definition['MvhdAtom'])
-
-        return ''.join(chain(header_bytes, full_atom_bytes, remainder))
+        written = FullAtom.to_bytes(self)
+        return ''.join(chain(written, write_atom(self.properties, self._definition['MvhdAtom'])))
 
 ATOM_TYPE_TO_CLASS = {
     'free': FreeAtom,

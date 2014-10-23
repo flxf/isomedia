@@ -1,4 +1,5 @@
 import os
+import StringIO
 
 from isomedia import atom
 from isomedia.atom import AtomHeader, GenericAtom, ContainerAtom
@@ -67,10 +68,10 @@ def parse_atom(ptr, document=None, parent=None, offset=None):
             atom_body = None
             ptr.seek(atom_body_length, os.SEEK_CUR)
 
-        new_atom = new_atom_class(atom_header, atom_body, document, parent, offset)
+        new_atom = new_atom_class(atom_header, StringIO.StringIO(atom_body), document, parent, offset)
     else:
         atom_body = need_read(ptr, atom_size - header_length)
-        new_atom = GenericAtom(atom_header, atom_body, document, parent, offset)
+        new_atom = GenericAtom(atom_header, StringIO.StringIO(atom_body), document, parent, offset)
 
     return (new_atom, atom_size)
 
