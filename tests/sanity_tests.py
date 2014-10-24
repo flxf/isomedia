@@ -39,5 +39,30 @@ class TestSanity(unittest.TestCase):
             self.assertEqual(len(isofile.atoms), 1)
             self.assertTrue(isinstance(isofile.atoms[0], GenericAtom))
 
+    def test_property_change(self):
+        mp4filename = os.path.join(TESTDATA, 'guitar.mp4')
+
+        faked_duration = 424242
+
+        with open(mp4filename, 'rb') as infile, tempfile.NamedTemporaryFile(delete=False) as outfile:
+            isofile = isomedia.load(infile)
+
+            moov = [atom for atom in isofile.atoms if atom.type == 'moov'][0]
+            mvhd = [atom for atom in moov.children if atom.type == 'mvhd'][0]
+            mvhd.properties['duration'] = faked_duration
+
+            isofile.write(outfile)
+
+        reopenedfile = open(outfile.name, 'rb')
+        reopenediso = isomedia.load(reopenedfile)
+
+        new_moov = [atom for atom in reopenediso.atoms if atom.type == 'moov'][0]
+        new_mvhd = [atom for atom in new_moov.children if atom.type == 'mvhd'][0]
+
+        self.assertEqual(new_mvhd.properties['duration'], faked_duration)
+
+        reopenedfile.close()
+        os.remove(outfile.name)
+
 if __name__ == '__main__':
     unittest.main()
