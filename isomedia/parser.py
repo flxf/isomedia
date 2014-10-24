@@ -105,6 +105,6 @@ def parse_children(ptr, offset, total_bytes, parent=None):
         bytes_read += atom_size
 
     if bytes_read != total_bytes:
-        raise Exception
+        raise MalformedIsomFile
 
     return children
