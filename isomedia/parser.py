@@ -36,13 +36,13 @@ def parse_file(ptr, document):
     filesize = get_ptr_size(ptr)
 
     while current_offset < filesize:
-        new_atom, atom_size = parse_atom(ptr, document=document, parent=None, offset=current_offset)
+        new_atom, atom_size = parse_atom(ptr, current_offset, document=document, parent=None)
         atoms.append(new_atom)
         current_offset += atom_size
 
     return atoms
 
-def parse_atom(ptr, document=None, parent=None, offset=None):
+def parse_atom(ptr, offset, document=None, parent=None):
     def parse_atom_header(ptr):
         data = need_read(ptr, 8)
         atom_size = interpret_int32(data, 0)
@@ -67,7 +67,7 @@ def parse_atom(ptr, document=None, parent=None, offset=None):
 
     if atom_type in atom.CONTAINER_ATOMS:
         new_atom = ContainerAtom(atom_header, None, document, parent, offset)
-        new_atom.children = parse_children(ptr, atom_body_length, parent=new_atom, offset=offset + header_length)
+        new_atom.children = parse_children(ptr, offset + header_length, atom_body_length, parent=new_atom)
     elif atom_type in isom_atoms.ATOM_TYPE_TO_CLASS:
         new_atom_class = isom_atoms.ATOM_TYPE_TO_CLASS[atom_type]
         if new_atom_class.LOAD_DATA:
@@ -95,12 +95,12 @@ def parse_atom(ptr, document=None, parent=None, offset=None):
 
     return (new_atom, atom_size)
 
-def parse_children(ptr, total_bytes, parent=None, offset=None):
+def parse_children(ptr, offset, total_bytes, parent=None):
     children = []
     bytes_read = 0
 
     while bytes_read < total_bytes:
-        new_atom, atom_size = parse_atom(ptr, parent=parent, offset=offset + bytes_read)
+        new_atom, atom_size = parse_atom(ptr, offset + bytes_read, parent=parent)
         children.append(new_atom)
         bytes_read += atom_size
 
