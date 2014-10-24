@@ -72,23 +72,22 @@ def interpret_int8(data, offset=0):
     return interpret_int(data, offset, 1)
 
 def write_atom_header(atom):
-    header = atom.header
     header_bytes = ''
 
-    if header.size > MAX_UINT32:
+    if atom.size > MAX_UINT32:
         header_bytes += struct.pack(UINT_BYTES_TO_FORMAT[4], 1)
     else:
         header_bytes += struct.pack(UINT_BYTES_TO_FORMAT[4], atom.size)
-    header_bytes += header.type
-    if header.size > MAX_UINT32:
+    header_bytes += atom.type
+    if atom.size > MAX_UINT32:
         header_bytes += struct.pack(UINT_BYTES_TO_FORMAT[8], atom.size)
 
     return header_bytes
 
 def interpret_atom(atom_body, definition):
-    def cast_field(data, length, cast):
+    def cast_field(data, size, cast):
         if cast == int:
-            data = struct.unpack(UINT_BYTES_TO_FORMAT[length], data)[0]
+            data = interpret_int(data, 0, size)
         return data
 
     result = {}
@@ -265,8 +264,6 @@ class LazyLoadAtom(Atom):
         return self.get_data()
 
 def create_atom(atom_type, atom_body):
-    assert len(atom_type) == 4, 'A box\'s type should be 4 bytes exactly.'
-
     body_length = len(atom_body)
     if body_length + STANDARD_HEADER_LENGTH <= MAX_UINT32:
         header_length = STANDARD_HEADER_LENGTH
@@ -274,5 +271,8 @@ def create_atom(atom_type, atom_body):
         header_length = EXTENDED_HEADER_LENGTH
 
     atom_size = header_length + body_length
-    atom_header = AtomHeader(atom_type, atom_size, header_length)
-    return GenericAtom(atom_header, StringIO.StringIO(atom_body), None, None, None)
+    atom_header = AtomHeader(None, atom_size, header_length)
+    atom = GenericAtom(atom_header, StringIO.StringIO(atom_body), None, None, None)
+    atom.type = atom_type
+
+    return atom
