@@ -212,7 +212,7 @@ class FullAtom(Atom):
 
     def to_bytes(self):
         written = Atom.to_bytes(self)
-        return ''.join(chain(written, write_atom(self.properties, self._definition['FullAtom'])))
+        return ''.join([written, write_atom(self.properties, self._definition['FullAtom'])])
 
 class ContainerAtom(Atom):
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
@@ -226,8 +226,8 @@ class ContainerAtom(Atom):
         })
 
     def to_bytes(self):
-        header_bytes = write_atom_header(self)
-        return ''.join(chain(header_bytes, (child.to_bytes() for child in self.children)))
+        written = Atom.to_bytes(self)
+        return ''.join(chain([written], (child.to_bytes() for child in self.children)))
 
     def append_child(self, child):
         self.size += child.size
@@ -242,8 +242,8 @@ class GenericAtom(Atom):
         return self._data
 
     def to_bytes(self):
-        header_bytes = write_atom_header(self)
-        return header_bytes + self.get_data()
+        written = Atom.to_bytes(self)
+        return ''.join([written, self.get_data()])
 
 class LazyLoadAtom(Atom):
     LOAD_DATA = False
@@ -255,13 +255,14 @@ class LazyLoadAtom(Atom):
     def get_data(self):
         if self._data is None:
             fp = self.document.fp
-            fp.seek(self._input_file_offset)
-            self._data = fp.read(self._input_size)
+            fp.seek(self._input_file_offset + self._body_offset)
+            self._data = fp.read(self._input_size - self._body_offset)
 
         return self._data
 
     def to_bytes(self):
-        return self.get_data()
+        written = Atom.to_bytes(self)
+        return ''.join([written, self.get_data()])
 
 def create_atom(atom_type, atom_body):
     body_length = len(atom_body)

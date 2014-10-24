@@ -1,6 +1,4 @@
-from itertools import chain
-
-from isomedia.atom import Atom, FullAtom, LazyLoadAtom, write_atom_header, interpret_atom, write_atom
+from isomedia.atom import Atom, FullAtom, LazyLoadAtom, interpret_atom, write_atom
 
 ISOM_ATOMS = [
     'bxml',
@@ -110,9 +108,12 @@ class UserExtendedAtom(Atom):
         self._user_type = atom_body[0:16]
         self._data = atom_body
 
+    def get_data(self):
+        return self._data
+
     def to_bytes(self):
-        header_bytes = write_atom_header(self)
-        return ''.join(header_bytes, self._data)
+        written = Atom.to_bytes(self)
+        return ''.join([written, self.get_data()])
 
 class FtypAtom(Atom):
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
@@ -129,7 +130,7 @@ class FtypAtom(Atom):
 
     def to_bytes(self):
         written = Atom.to_bytes(self)
-        return ''.join(chain(written, write_atom(self.properties, self._definition['FtypAtom'])))
+        return ''.join([written, write_atom(self.properties, self._definition['FtypAtom'])])
 
 class MvhdAtom(FullAtom):
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
@@ -172,7 +173,7 @@ class MvhdAtom(FullAtom):
 
     def to_bytes(self):
         written = FullAtom.to_bytes(self)
-        return ''.join(chain(written, write_atom(self.properties, self._definition['MvhdAtom'])))
+        return ''.join([written, write_atom(self.properties, self._definition['MvhdAtom'])])
 
 ATOM_TYPE_TO_CLASS = {
     'free': FreeAtom,
