@@ -9,8 +9,8 @@ Usage
 ```python
 import isomedia
 
-f = open('selfie_vine.mp4', 'rb')
-isofile = isomedia.load(f)
+with open('selfie_vine.mp4', 'rb') as f:
+    isofile = isomedia.load(f)
 
-moov = [atom for atom in isofile.atoms if atom.type == 'moov']
+    moov = [atom for atom in isofile.atoms if atom.type == 'moov']
 ```
