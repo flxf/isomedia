@@ -30,7 +30,6 @@ CONTAINER_ATOMS = [
     'ipro',
     'keyw',
     'mdia',
-    'meta',
     'meco',
     'mfra',
     'minf',
