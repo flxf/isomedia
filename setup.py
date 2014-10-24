@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='isomedia',
-    version='0.2',
+    version='0.2.1',
     description='This is another ISO base media format file parser.',
     author='Felix Fung',
     author_email='felix.the.cheshire.cat@gmail.com',
