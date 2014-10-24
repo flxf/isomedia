@@ -157,7 +157,7 @@ class AtomHeader(object):
         self.header_length = header_length
 
 class Atom(object):
-    # Enable lazy-loading
+    # Allow lazy-loading (enabled when False)
     LOAD_DATA = True
 
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
