@@ -220,7 +220,7 @@ class Atom(object):
 
 class FullAtom(Atom):
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
-        Atom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
+        super(FullAtom, self).__init__(atom_header, atom_body, document, parent_atom, file_offset)
 
         definition = [
             ('version', (1, int)),
@@ -231,13 +231,25 @@ class FullAtom(Atom):
         self._definition['FullAtom'] = definition
 
     def to_bytes(self):
-        written = Atom.to_bytes(self)
+        written = super(FullAtom, self).to_bytes()
         return ''.join([written, write_atom(self.properties, self._definition['FullAtom'])])
 
-class ContainerAtom(Atom):
+class ContainerMixin(object):
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
-        Atom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
+        super(ContainerMixin, self).__init__(atom_header, atom_body, document, parent_atom, file_offset)
         self.children = []
+
+    def to_bytes(self):
+        written = super(ContainerMixin, self).to_bytes()
+        return ''.join(chain([written], (child.to_bytes() for child in self.children)))
+
+    def append_child(self, child):
+        self.size += child.size
+        self.children.append(child)
+
+class ContainerAtom(ContainerMixin, Atom):
+    def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
+        super(ContainerAtom, self).__init__(atom_header, atom_body, document, parent_atom, file_offset)
 
     def __repr__(self):
         return str({
@@ -245,31 +257,23 @@ class ContainerAtom(Atom):
             'children': self.children
         })
 
-    def to_bytes(self):
-        written = Atom.to_bytes(self)
-        return ''.join(chain([written], (child.to_bytes() for child in self.children)))
-
-    def append_child(self, child):
-        self.size += child.size
-        self.children.append(child)
-
 class GenericAtom(Atom):
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
-        Atom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
+        super(GenericAtom, self).__init__(atom_header, atom_body, document, parent_atom, file_offset)
         self._data = atom_body.read()
 
     def get_data(self):
         return self._data
 
     def to_bytes(self):
-        written = Atom.to_bytes(self)
+        written = super(GenericAtom, self).to_bytes()
         return ''.join([written, self.get_data()])
 
 class LazyLoadAtom(Atom):
     LOAD_DATA = False
 
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
-        Atom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
+        super(LazyLoadAtom, self).__init__(atom_header, atom_body, document, parent_atom, file_offset)
         self._data = None
 
     def get_data(self):
@@ -281,7 +285,7 @@ class LazyLoadAtom(Atom):
         return self._data
 
     def to_bytes(self):
-        written = Atom.to_bytes(self)
+        written = super(LazyLoadAtom, self).to_bytes()
         return ''.join([written, self.get_data()])
 
 def create_atom(atom_type, atom_body):
