@@ -1,4 +1,4 @@
-from isomedia.atom import Atom, FullAtom, LazyLoadAtom, interpret_atom, write_atom
+from isomedia.atom import Atom, ContainerMixin, FullAtom, LazyLoadAtom, interpret_atom, write_atom
 
 ISOM_ATOMS = [
     'bxml',
@@ -175,10 +175,14 @@ class MvhdAtom(FullAtom):
         written = FullAtom.to_bytes(self)
         return ''.join([written, write_atom(self.properties, self._definition['MvhdAtom'])])
 
+class MetaAtom(ContainerMixin, FullAtom):
+    pass
+
 ATOM_TYPE_TO_CLASS = {
     'free': FreeAtom,
     'ftyp': FtypAtom,
     'mdat': MdatAtom,
+    'meta': MetaAtom,
     'mvhd': MvhdAtom,
     'skip': SkipAtom,
     'uuid': UserExtendedAtom,

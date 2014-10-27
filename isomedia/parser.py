@@ -2,7 +2,7 @@ import os
 import StringIO
 
 from isomedia import atom, isom_atoms
-from isomedia.atom import AtomHeader, GenericAtom, ContainerAtom, interpret_int32, interpret_int64
+from isomedia.atom import AtomHeader, ContainerAtom, ContainerMixin, GenericAtom, interpret_int32, interpret_int64
 from isomedia.exceptions import MalformedIsomFile, AtomSpecificationError
 
 def get_ptr_size(ptr):
@@ -67,10 +67,10 @@ def parse_atom(ptr, offset, document=None, parent=None):
 
     if atom_type in atom.CONTAINER_ATOMS:
         new_atom = ContainerAtom(atom_header, None, document, parent, offset)
-        new_atom.children = parse_children(ptr, offset + header_length, atom_body_length, parent=new_atom)
     elif atom_type in isom_atoms.ATOM_TYPE_TO_CLASS:
         new_atom_class = isom_atoms.ATOM_TYPE_TO_CLASS[atom_type]
-        if new_atom_class.LOAD_DATA:
+        # TODO: More correctly handle lazy-loading inside container atoms with properties
+        if new_atom_class.LOAD_DATA or issubclass(new_atom_class, ContainerMixin):
             try:
                 atom_body = need_read(ptr, atom_body_length)
             except EOFError:
@@ -92,6 +92,9 @@ def parse_atom(ptr, offset, document=None, parent=None):
         except EOFError:
             raise MalformedIsomFile
         new_atom = GenericAtom(atom_header, StringIO.StringIO(atom_body), document, parent, offset)
+
+    if isinstance(new_atom, ContainerMixin):
+        new_atom.children = parse_children(ptr, offset + header_length, atom_body_length, parent=new_atom)
 
     return (new_atom, atom_size)
 
