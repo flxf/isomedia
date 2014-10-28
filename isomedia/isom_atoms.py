@@ -125,7 +125,7 @@ class FtypAtom(Atom):
             ('compatible_brands', (list, (4, None), None))
         ]
 
-        self.properties.update(interpret_atom(atom_body, definition))
+        self.properties.update(interpret_atom(atom_header, atom_body, definition))
         self._definition['FtypAtom'] = definition
 
     def to_bytes(self):
@@ -168,7 +168,7 @@ class MvhdAtom(FullAtom):
             ('next_track_ID', (4, int))
         ])
 
-        self.properties.update(interpret_atom(atom_body, definition))
+        self.properties.update(interpret_atom(atom_header, atom_body, definition))
         self._definition['MvhdAtom'] = definition
 
     def to_bytes(self):

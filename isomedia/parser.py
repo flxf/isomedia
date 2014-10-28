@@ -60,41 +60,43 @@ def parse_atom(ptr, offset, document=None, parent=None):
 
     atom_header = AtomHeader(atom_type, atom_size, header_length)
     atom_body_length = atom_size - header_length
+    atom_body_start = ptr.tell()
 
     # TODO: Clearly distinguish different atom specifications
     new_atom = None
-    atom_body = None
 
     if atom_type in atom.CONTAINER_ATOMS:
-        new_atom = ContainerAtom(atom_header, None, document, parent, offset)
+        new_atom = ContainerAtom(atom_header, ptr, document, parent, offset)
+        new_atom.children = parse_children(ptr, offset + header_length, atom_body_length, parent=new_atom)
     elif atom_type in isom_atoms.ATOM_TYPE_TO_CLASS:
         new_atom_class = isom_atoms.ATOM_TYPE_TO_CLASS[atom_type]
-        # TODO: More correctly handle lazy-loading inside container atoms with properties
-        if new_atom_class.LOAD_DATA or issubclass(new_atom_class, ContainerMixin):
+
+        if new_atom_class.LOAD_DATA:
+            # If the atom is the right size but doesn't match the definition, we can still parse the rest of the file and
+            # just default this atom to a GenericAtom and let the caller munge the bits.
             try:
-                atom_body = need_read(ptr, atom_body_length)
-            except EOFError:
-                raise MalformedIsomFile
+                new_atom = new_atom_class(atom_header, ptr, document, parent, offset)
+                parent_fragment_bytes = ptr.tell() - atom_body_start
+                children_bytes = atom_size - parent_fragment_bytes
+
+                if isinstance(new_atom, ContainerMixin):
+                    new_atom.children = parse_children(ptr, offset + header_length, children_bytes, parent=new_atom)
+            except AtomSpecificationError:
+                new_atom = None
+                ptr.seek(atom_body_start, os.SEEK_SET)
         else:
-            atom_body = None
+            new_atom = new_atom_class(atom_header, ptr, document, parent, offset)
             ptr.seek(atom_body_length, os.SEEK_CUR)
 
-        # If the atom is the right size but doesn't match the definition, we can still parse the rest of the file and
-        # just default this atom to a GenericAtom and let the caller munge the bits.
-        try:
-            new_atom = new_atom_class(atom_header, StringIO.StringIO(atom_body), document, parent, offset)
-        except AtomSpecificationError:
-            new_atom = None
-
     if new_atom is None:
-        try:
-            atom_body = atom_body or need_read(ptr, atom_body_length)
-        except EOFError:
-            raise MalformedIsomFile
-        new_atom = GenericAtom(atom_header, StringIO.StringIO(atom_body), document, parent, offset)
+        generic_data = ptr.read(atom_body_length)
+        new_atom = GenericAtom(atom_header, StringIO.StringIO(generic_data), document, parent, offset)
 
-    if isinstance(new_atom, ContainerMixin):
-        new_atom.children = parse_children(ptr, offset + header_length, atom_body_length, parent=new_atom)
+    atom_body_end = ptr.tell()
+    atom_bytes_read = header_length + (atom_body_end - atom_body_start)
+
+    if atom_bytes_read != atom_size:
+        raise MalformedIsomFile
 
     return (new_atom, atom_size)
 

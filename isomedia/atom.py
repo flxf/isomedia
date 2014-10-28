@@ -104,13 +104,16 @@ def write_atom_header(atom):
 
     return header_bytes
 
-def interpret_atom(atom_body, definition):
+def interpret_atom(atom_header, atom_body, definition):
     def cast_field(data, size, cast):
         if cast == int:
             data = interpret_int(data, 0, size)
         return data
 
     result = {}
+    atom_body_length = atom_header.size - atom_header.header_length
+
+    bytes_read = 0
 
     for field in definition:
         field_name, field_type = field
@@ -121,11 +124,11 @@ def interpret_atom(atom_body, definition):
             item_count = field_type[2]
 
             data = []
-            while item_count is None or len(data) < item_count:
+            while (item_count is None and bytes_read < atom_body_length) or len(data) < item_count:
                 item_data = atom_body.read(item_length)
-                if not item_data:
-                    break
-                elif len(item_data) != item_length:
+                bytes_read += len(item_data)
+
+                if len(item_data) != item_length:
                     raise AtomSpecificationError
 
                 item_data = cast_field(item_data, item_length, item_cast)
@@ -133,6 +136,8 @@ def interpret_atom(atom_body, definition):
 
         else:
             data = atom_body.read(length)
+            bytes_read += len(data)
+
             if len(data) != length:
                 raise AtomSpecificationError
 
@@ -227,7 +232,7 @@ class FullAtom(Atom):
             ('flags', (3, None))
         ]
 
-        self.properties.update(interpret_atom(atom_body, definition))
+        self.properties.update(interpret_atom(atom_header, atom_body, definition))
         self._definition['FullAtom'] = definition
 
     def to_bytes(self):
@@ -242,10 +247,6 @@ class ContainerMixin(object):
     def to_bytes(self):
         written = super(ContainerMixin, self).to_bytes()
         return ''.join(chain([written], (child.to_bytes() for child in self.children)))
-
-    def append_child(self, child):
-        self.size += child.size
-        self.children.append(child)
 
 class ContainerAtom(ContainerMixin, Atom):
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
