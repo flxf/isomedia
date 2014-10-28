@@ -64,5 +64,11 @@ class TestSanity(unittest.TestCase):
         reopenedfile.close()
         os.remove(outfile.name)
 
+    def test_meta_with_children(self):
+        mp4filename = os.path.join(TESTDATA, 'meta_with_children.mp4')
+
+        with open(mp4filename, 'rb') as infile:
+            isofile = isomedia.load(infile)
+
 if __name__ == '__main__':
     unittest.main()

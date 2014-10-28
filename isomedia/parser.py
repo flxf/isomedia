@@ -77,7 +77,7 @@ def parse_atom(ptr, offset, document=None, parent=None):
             try:
                 new_atom = new_atom_class(atom_header, ptr, document, parent, offset)
                 parent_fragment_bytes = ptr.tell() - atom_body_start
-                children_bytes = atom_size - parent_fragment_bytes
+                children_bytes = atom_size - header_length - parent_fragment_bytes
 
                 if isinstance(new_atom, ContainerMixin):
                     new_atom.children = parse_children(ptr, offset + header_length, children_bytes, parent=new_atom)
