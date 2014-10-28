@@ -103,7 +103,7 @@ class MdatAtom(LazyLoadAtom):
 class UserExtendedAtom(Atom):
     # TODO: How should I surface both uuid and the extended types
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
-        Atom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
+        super(UserExtendedAtom, self).__init__(atom_header, atom_body, document, parent_atom, file_offset)
 
         self._user_type = atom_body[0:16]
         self._data = atom_body
@@ -112,12 +112,12 @@ class UserExtendedAtom(Atom):
         return self._data
 
     def to_bytes(self):
-        written = Atom.to_bytes(self)
+        written = super(UserExtendedAtom, self).to_bytes()
         return ''.join([written, self.get_data()])
 
 class FtypAtom(Atom):
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
-        Atom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
+        super(FtypAtom, self).__init__(atom_header, atom_body, document, parent_atom, file_offset)
 
         definition = [
             ('major_brand', (4, None)),
@@ -129,12 +129,28 @@ class FtypAtom(Atom):
         self._definition['FtypAtom'] = definition
 
     def to_bytes(self):
-        written = Atom.to_bytes(self)
+        written = super(FtypAtom, self).to_bytes()
         return ''.join([written, write_atom(self.properties, self._definition['FtypAtom'])])
+
+class IlstAtom(ContainerMixin, Atom):
+    def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
+        super(IlstAtom, self).__init__(atom_header, atom_body, document, parent_atom, file_offset)
+
+        definition = [
+            ('tag_name', (4, None)),
+        ]
+
+        self.properties.update(interpret_atom(atom_header, atom_body, definition))
+        self._definition['IlstAtom'] = definition
+
+    def to_bytes(self):
+        written = super(IlstAtom, self).to_bytes()
+        return ''.join([written, write_atom(self.properties, self._definition['IlstAtom'])])
+
 
 class MvhdAtom(FullAtom):
     def __init__(self, atom_header, atom_body, document, parent_atom, file_offset):
-        FullAtom.__init__(self, atom_header, atom_body, document, parent_atom, file_offset)
+        super(MvhdAtom, self).__init__(atom_header, atom_body, document, parent_atom, file_offset)
 
         definition = []
 
@@ -172,7 +188,7 @@ class MvhdAtom(FullAtom):
         self._definition['MvhdAtom'] = definition
 
     def to_bytes(self):
-        written = FullAtom.to_bytes(self)
+        written = super(MvhdAtom, self).to_bytes()
         return ''.join([written, write_atom(self.properties, self._definition['MvhdAtom'])])
 
 class MetaAtom(ContainerMixin, FullAtom):
@@ -181,6 +197,7 @@ class MetaAtom(ContainerMixin, FullAtom):
 ATOM_TYPE_TO_CLASS = {
     'free': FreeAtom,
     'ftyp': FtypAtom,
+    'ilst': IlstAtom,
     'mdat': MdatAtom,
     'meta': MetaAtom,
     'mvhd': MvhdAtom,

@@ -70,5 +70,12 @@ class TestSanity(unittest.TestCase):
         with open(mp4filename, 'rb') as infile:
             isofile = isomedia.load(infile)
 
+            moov = [atom for atom in isofile.atoms if atom.type == 'moov'][0]
+            udta = [atom for atom in moov.children if atom.type == 'udta'][0]
+            meta = [atom for atom in udta.children if atom.type == 'meta'][0]
+            ilst = [atom for atom in meta.children if atom.type == 'ilst'][0]
+
+            print ilst.properties
+
 if __name__ == '__main__':
     unittest.main()
