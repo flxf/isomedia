@@ -74,8 +74,7 @@ class TestSanity(unittest.TestCase):
             udta = [atom for atom in moov.children if atom.type == 'udta'][0]
             meta = [atom for atom in udta.children if atom.type == 'meta'][0]
             ilst = [atom for atom in meta.children if atom.type == 'ilst'][0]
-
-            print ilst.properties
+            cust = [atom for atom in ilst.children if atom.type == '----'][0]
 
 if __name__ == '__main__':
     unittest.main()

@@ -5,6 +5,7 @@ import struct
 from isomedia.exceptions import AtomSpecificationError
 
 CONTAINER_ATOMS = [
+    '----',
     '\xa9alb',
     '\xa9art',
     '\xa9cmt',
@@ -46,10 +47,10 @@ CONTAINER_ATOMS = [
     'schi',
     'sinf',
     'srpp',
+    'stbl',
     'stik',
     'strd',
     'strk',
-    'stbl',
     'tmpo',
     'traf',
     'trak',
